@@ -1,11 +1,9 @@
-name: Build CloudStream APK
+name: Build CloudStream Core AAR
 
 on:
   push:
     branches: [ master, main ]
-  pull_request:
-    branches: [ master, main ]
-  workflow_dispatch: # मैन्युअल रूप से बटन दबाकर बिल्ड करने के लिए
+  workflow_dispatch:
 
 jobs:
   build:
@@ -27,12 +25,12 @@ jobs:
       - name: Grant Execute Permission for Gradlew
         run: chmod +x gradlew
 
-      - name: Build Android Debug APK
+      - name: Build Android Library (AAR)
         run: ./gradlew :app:assembleDebug --stacktrace
 
-      - name: Upload APK as Artifact
+      - name: Upload Core AAR Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: cloudstream-debug-apk
-          path: app/build/outputs/apk/debug/*.apk
+          name: cloudstream-core-aar
+          path: app/build/outputs/aar/*.aar
           retention-days: 7
