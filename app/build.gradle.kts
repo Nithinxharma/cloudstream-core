@@ -1,3 +1,8 @@
+import java.io.File
+import java.io.FileInputStream
+import java.io.FileOutputStream
+import java.util.zip.ZipEntry
+import java.util.zip.ZipOutputStream
 import com.android.build.gradle.internal.cxx.configure.gradleLocalProperties
 import org.jetbrains.dokka.gradle.engine.parameters.KotlinPlatform
 import org.jetbrains.dokka.gradle.engine.parameters.VisibilityModifier
@@ -257,6 +262,112 @@ dokka {
                 remoteUrl("https://github.com/recloudstream/cloudstream/tree/master")
                 remoteLineSuffix = "#L"
             }
+        }
+    }
+}
+
+
+tasks.register("bundleSingleAar") {
+    group = "build"
+    description = "Bundles :app, :library, and :shared into a single unified cs3core.aar"
+    dependsOn(":app:assembleDebug", ":library:assemble", ":shared:assemble")
+
+    val appAar = layout.buildDirectory.file("outputs/aar/app-debug.aar")
+    val libAar = rootProject.project(":library").layout.buildDirectory.file("outputs/aar/library.aar")
+    val sharedAar = rootProject.project(":shared").layout.buildDirectory.file("outputs/aar/shared.aar")
+    val outputAar = layout.buildDirectory.file("outputs/aar/cs3core.aar")
+
+    inputs.files(appAar, libAar, sharedAar)
+    outputs.file(outputAar)
+
+    doLast {
+        val appAarFile = appAar.get().asFile
+        val libAarFile = libAar.get().asFile
+        val sharedAarFile = sharedAar.get().asFile
+        val outputAarFile = outputAar.get().asFile
+
+        if (!appAarFile.exists()) error("app-debug.aar does not exist at ${appAarFile.absolutePath}")
+        if (!libAarFile.exists()) error("library.aar does not exist at ${libAarFile.absolutePath}")
+        if (!sharedAarFile.exists()) error("shared.aar does not exist at ${sharedAarFile.absolutePath}")
+
+        outputAarFile.parentFile.mkdirs()
+
+        val tempDir = File(layout.buildDirectory.get().asFile, "tmp/bundleSingleAar").apply {
+            deleteRecursively()
+            mkdirs()
+        }
+
+        try {
+            val appExtractDir = File(tempDir, "app_aar").apply { mkdirs() }
+            val libExtractDir = File(tempDir, "lib_aar").apply { mkdirs() }
+            val sharedExtractDir = File(tempDir, "shared_aar").apply { mkdirs() }
+            val mergedClassesDir = File(tempDir, "merged_classes").apply { mkdirs() }
+            val finalClassesJar = File(appExtractDir, "classes.jar")
+
+            // Unzip AAR archives
+            copy {
+                from(zipTree(appAarFile))
+                into(appExtractDir)
+            }
+            copy {
+                from(zipTree(libAarFile))
+                into(libExtractDir)
+            }
+            copy {
+                from(zipTree(sharedAarFile))
+                into(sharedExtractDir)
+            }
+
+            // Extract classes.jar from all 3 modules into mergedClassesDir
+            val jarFiles = listOf(
+                File(appExtractDir, "classes.jar"),
+                File(libExtractDir, "classes.jar"),
+                File(sharedExtractDir, "classes.jar")
+            )
+
+            for (jar in jarFiles) {
+                if (jar.exists()) {
+                    copy {
+                        from(zipTree(jar))
+                        into(mergedClassesDir)
+                        duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+                    }
+                }
+            }
+
+            fun createZipArchive(sourceDirectory: File, targetZipFile: File) {
+                ZipOutputStream(FileOutputStream(targetZipFile)).use { zos ->
+                    sourceDirectory.walkTopDown().forEach { file ->
+                        val relativePath = file.relativeTo(sourceDirectory).path.replace('\\', '/')
+                        if (file.isDirectory) {
+                            if (relativePath.isNotEmpty()) {
+                                zos.putNextEntry(ZipEntry("$relativePath/"))
+                                zos.closeEntry()
+                            }
+                        } else {
+                            zos.putNextEntry(ZipEntry(relativePath))
+                            FileInputStream(file).use { input -> input.copyTo(zos) }
+                            zos.closeEntry()
+                        }
+                    }
+                }
+            }
+
+            // 1. Pack merged classes directory into final classes.jar
+            if (finalClassesJar.exists()) {
+                finalClassesJar.delete()
+            }
+            createZipArchive(mergedClassesDir, finalClassesJar)
+
+            // 2. Pack the updated appExtractDir into cs3core.aar
+            if (outputAarFile.exists()) {
+                outputAarFile.delete()
+            }
+            createZipArchive(appExtractDir, outputAarFile)
+
+            logger.lifecycle("Successfully created single merged AAR: ${outputAarFile.absolutePath} (${outputAarFile.length()} bytes)")
+        } finally {
+            tempDir.deleteRecursively()
         }
     }
 }

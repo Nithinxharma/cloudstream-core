@@ -1,0 +1,52 @@
+name: Android CI (cs3core & Test App)
+
+on:
+  push:
+    branches: [ master, main ]
+  pull_request:
+    branches: [ master, main ]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build cs3core.aar & Test App
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+          cache: 'gradle'
+
+      - name: Grant Execute Permission for Gradlew
+        run: chmod +x gradlew
+
+      - name: Bundle Single AAR (cs3core.aar)
+        run: ./gradlew :app:bundleSingleAar --no-configuration-cache --stacktrace
+
+      - name: Build Test App APK
+        run: ./gradlew :testApp:assembleDebug --no-configuration-cache --stacktrace
+
+      - name: Upload cs3core.aar Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: cs3core-aar
+          path: app/build/outputs/aar/cs3core.aar
+          retention-days: 14
+
+      - name: Upload Test App APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-app-apk
+          path: testApp/build/outputs/apk/debug/*.apk
+          retention-days: 14
