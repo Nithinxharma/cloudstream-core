@@ -6,7 +6,7 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.tasks.KotlinJvmCompile
 
 plugins {
-    alias(libs.plugins.android.application)
+    alias(libs.plugins.android.library)
     alias(libs.plugins.dokka)
     alias(libs.plugins.kotlin.serialization)
     // // // alias(libs.plugins.compose.multiplatform)
@@ -103,7 +103,6 @@ android {
     compileSdk = libs.versions.compileSdk.get().toInt()
 
     defaultConfig {
-        applicationId = "com.lagradost.cloudstream3"
         minSdk = libs.versions.minSdk.get().toInt()
         targetSdk = libs.versions.targetSdk.get().toInt()
         versionCode = libs.versions.versionCode.get().toInt()
@@ -154,7 +153,6 @@ android {
         }
         debug {
             isDebuggable = true
-            applicationIdSuffix = ".debug"
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -169,7 +167,6 @@ android {
         }
         create("prerelease") {
             dimension = "state"
-            applicationIdSuffix = ".prerelease"
             if (signingConfigs.names.contains("prerelease")) {
                 signingConfig = signingConfigs.getByName("prerelease")
             } else {
