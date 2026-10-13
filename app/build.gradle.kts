@@ -2,6 +2,7 @@ import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
 import java.util.zip.ZipEntry
+import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
 import com.android.build.gradle.internal.cxx.configure.gradleLocalProperties
 import org.jetbrains.dokka.gradle.engine.parameters.KotlinPlatform
@@ -267,34 +268,69 @@ dokka {
 }
 
 
+
 tasks.register("bundleSingleAar") {
     group = "build"
     description = "Bundles :app, :library, and :shared into a single unified cs3core.aar"
     dependsOn(":app:assembleDebug", ":library:assemble", ":shared:assemble")
 
-    val appAar = layout.buildDirectory.file("outputs/aar/app-debug.aar")
-    val libAar = rootProject.project(":library").layout.buildDirectory.file("outputs/aar/library.aar")
-    val sharedAar = rootProject.project(":shared").layout.buildDirectory.file("outputs/aar/shared.aar")
-    val outputAar = layout.buildDirectory.file("outputs/aar/cs3core.aar")
+    val appAarFile = layout.buildDirectory.file("outputs/aar/app-debug.aar").get().asFile
+    val libAarDefault = rootProject.project(":library").layout.buildDirectory.file("outputs/aar/library.aar").get().asFile
+    val libAarDebug = rootProject.project(":library").layout.buildDirectory.file("outputs/aar/library-debug.aar").get().asFile
+    val sharedAarDefault = rootProject.project(":shared").layout.buildDirectory.file("outputs/aar/shared.aar").get().asFile
+    val sharedAarDebug = rootProject.project(":shared").layout.buildDirectory.file("outputs/aar/shared-debug.aar").get().asFile
+    val outputAarFile = layout.buildDirectory.file("outputs/aar/cs3core.aar").get().asFile
+    val buildDirectory = layout.buildDirectory.get().asFile
 
-    inputs.files(appAar, libAar, sharedAar)
-    outputs.file(outputAar)
+    inputs.files(appAarFile, libAarDefault, libAarDebug, sharedAarDefault, sharedAarDebug)
+    outputs.file(outputAarFile)
 
     doLast {
-        val appAarFile = appAar.get().asFile
-        val libAarFile = libAar.get().asFile
-        val sharedAarFile = sharedAar.get().asFile
-        val outputAarFile = outputAar.get().asFile
+        val resolvedLibAar = if (libAarDefault.exists()) libAarDefault else libAarDebug
+        val resolvedSharedAar = if (sharedAarDefault.exists()) sharedAarDefault else sharedAarDebug
 
         if (!appAarFile.exists()) error("app-debug.aar does not exist at ${appAarFile.absolutePath}")
-        if (!libAarFile.exists()) error("library.aar does not exist at ${libAarFile.absolutePath}")
-        if (!sharedAarFile.exists()) error("shared.aar does not exist at ${sharedAarFile.absolutePath}")
+        if (!resolvedLibAar.exists()) error("library.aar does not exist at ${resolvedLibAar.absolutePath}")
+        if (!resolvedSharedAar.exists()) error("shared.aar does not exist at ${resolvedSharedAar.absolutePath}")
 
         outputAarFile.parentFile.mkdirs()
-
-        val tempDir = File(layout.buildDirectory.get().asFile, "tmp/bundleSingleAar").apply {
+        val tempDir = File(buildDirectory, "tmp/bundleSingleAar").apply {
             deleteRecursively()
             mkdirs()
+        }
+
+        fun unzipArchive(zipFile: File, destDir: File) {
+            ZipInputStream(FileInputStream(zipFile)).use { zis ->
+                var entry = zis.nextEntry
+                while (entry != null) {
+                    val newFile = File(destDir, entry.name)
+                    if (entry.isDirectory) {
+                        newFile.mkdirs()
+                    } else {
+                        newFile.parentFile.mkdirs()
+                        FileOutputStream(newFile).use { fos -> zis.copyTo(fos) }
+                    }
+                    entry = zis.nextEntry
+                }
+            }
+        }
+
+        fun createZipArchive(sourceDirectory: File, targetZipFile: File) {
+            ZipOutputStream(FileOutputStream(targetZipFile)).use { zos ->
+                sourceDirectory.walkTopDown().forEach { file ->
+                    val relativePath = file.relativeTo(sourceDirectory).path.replace('\\', '/')
+                    if (file.isDirectory) {
+                        if (relativePath.isNotEmpty()) {
+                            zos.putNextEntry(ZipEntry("$relativePath/"))
+                            zos.closeEntry()
+                        }
+                    } else {
+                        zos.putNextEntry(ZipEntry(relativePath))
+                        FileInputStream(file).use { input -> input.copyTo(zos) }
+                        zos.closeEntry()
+                    }
+                }
+            }
         }
 
         try {
@@ -305,18 +341,9 @@ tasks.register("bundleSingleAar") {
             val finalClassesJar = File(appExtractDir, "classes.jar")
 
             // Unzip AAR archives
-            copy {
-                from(zipTree(appAarFile))
-                into(appExtractDir)
-            }
-            copy {
-                from(zipTree(libAarFile))
-                into(libExtractDir)
-            }
-            copy {
-                from(zipTree(sharedAarFile))
-                into(sharedExtractDir)
-            }
+            unzipArchive(appAarFile, appExtractDir)
+            unzipArchive(resolvedLibAar, libExtractDir)
+            unzipArchive(resolvedSharedAar, sharedExtractDir)
 
             // Extract classes.jar from all 3 modules into mergedClassesDir
             val jarFiles = listOf(
@@ -324,32 +351,9 @@ tasks.register("bundleSingleAar") {
                 File(libExtractDir, "classes.jar"),
                 File(sharedExtractDir, "classes.jar")
             )
-
             for (jar in jarFiles) {
                 if (jar.exists()) {
-                    copy {
-                        from(zipTree(jar))
-                        into(mergedClassesDir)
-                        duplicatesStrategy = DuplicatesStrategy.EXCLUDE
-                    }
-                }
-            }
-
-            fun createZipArchive(sourceDirectory: File, targetZipFile: File) {
-                ZipOutputStream(FileOutputStream(targetZipFile)).use { zos ->
-                    sourceDirectory.walkTopDown().forEach { file ->
-                        val relativePath = file.relativeTo(sourceDirectory).path.replace('\\', '/')
-                        if (file.isDirectory) {
-                            if (relativePath.isNotEmpty()) {
-                                zos.putNextEntry(ZipEntry("$relativePath/"))
-                                zos.closeEntry()
-                            }
-                        } else {
-                            zos.putNextEntry(ZipEntry(relativePath))
-                            FileInputStream(file).use { input -> input.copyTo(zos) }
-                            zos.closeEntry()
-                        }
-                    }
+                    unzipArchive(jar, mergedClassesDir)
                 }
             }
 
@@ -365,7 +369,7 @@ tasks.register("bundleSingleAar") {
             }
             createZipArchive(appExtractDir, outputAarFile)
 
-            logger.lifecycle("Successfully created single merged AAR: ${outputAarFile.absolutePath} (${outputAarFile.length()} bytes)")
+            println("Successfully created single merged AAR: ${outputAarFile.absolutePath} (${outputAarFile.length()} bytes)")
         } finally {
             tempDir.deleteRecursively()
         }

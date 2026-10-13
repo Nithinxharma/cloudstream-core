@@ -45,8 +45,10 @@ android {
 }
 
 dependencies {
-    // Single Unified AAR
-    implementation(files("../app/build/outputs/aar/cs3core.aar"))
+    // Single Unified AAR (builtBy ensures :app:bundleSingleAar runs before testApp tasks)
+    implementation(files("../app/build/outputs/aar/cs3core.aar") {
+        builtBy(":app:bundleSingleAar")
+    })
 
     // Standard Runtime & Transitive Dependencies
     implementation(libs.nicehttp)
