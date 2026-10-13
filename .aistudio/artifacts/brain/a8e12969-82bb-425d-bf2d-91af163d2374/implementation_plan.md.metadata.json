@@ -1,0 +1,6 @@
+{
+  "summary": "Implementation plan to unify multi-module AARs into cs3core.aar and build testApp APK cs3core-test.apk in GitHub Actions CI.",
+  "updatedAt": "2026-10-13T16:26:49.448152986Z",
+  "requestFeedback": true,
+  "userFacing": true
+}

@@ -1,6 +1,11 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.serialization)
+    base
+}
+
+base {
+    archivesName.set("cs3core-test")
 }
 
 android {
