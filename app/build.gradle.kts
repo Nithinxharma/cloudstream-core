@@ -9,8 +9,8 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.dokka)
     alias(libs.plugins.kotlin.serialization)
-    alias(libs.plugins.compose.multiplatform)
-    alias(libs.plugins.compose.compiler)
+    // // // alias(libs.plugins.compose.multiplatform)
+    // // // alias(libs.plugins.compose.compiler)
 }
 
 val javaTarget = JvmTarget.fromTarget(libs.versions.jvmTarget.get())
@@ -200,7 +200,7 @@ android {
 
     buildFeatures {
         buildConfig = true
-        viewBinding = true
+        viewBinding = false
     }
 
     packaging {
@@ -237,9 +237,9 @@ dependencies {
     implementation(libs.kotlinx.serialization.json) // JSON Parser
 
     // Design & UI
-    implementation(libs.preference.ktx)
-    implementation(libs.material)
-    implementation(libs.constraintlayout)
+    // // // implementation(libs.preference.ktx)
+    // // // implementation(libs.material)
+    // // // implementation(libs.constraintlayout)
 
     // Coil Image Loading
     implementation(libs.bundles.coil)
@@ -255,18 +255,18 @@ dependencies {
     implementation(libs.anime.db)
 
     // PlayBack
-    implementation(libs.colorpicker) // Subtitle Color Picker
+    // // // implementation(libs.colorpicker) // Subtitle Color Picker
     implementation(libs.newpipeextractor) // For Trailers
     implementation(libs.juniversalchardet) // Subtitle Decoding
 
     // UI Stuff
-    implementation(libs.shimmer) // Shimmering Effect (Loading Skeleton)
+    // // // implementation(libs.shimmer) // Shimmering Effect (Loading Skeleton)
     implementation(libs.palette.ktx) // Palette for Images -> Colors
-    implementation(libs.tvprovider)
-    implementation(libs.overlappingpanels) // Gestures
+    // // // implementation(libs.tvprovider)
+    // // // implementation(libs.overlappingpanels) // Gestures
     implementation(libs.biometric) // Fingerprint Authentication
-    implementation(libs.previewseekbar.media3) // SeekBar Preview
-    implementation(libs.qrcode.kotlin) // QR Code for PIN Auth on TV
+    // // // implementation(libs.previewseekbar.media3) // SeekBar Preview
+    // // // implementation(libs.qrcode.kotlin) // QR Code for PIN Auth on TV
 
     // Extensions & Other Libs
     implementation(libs.jsoup) // HTML Parser
@@ -290,8 +290,8 @@ dependencies {
     implementation(libs.work.runtime.ktx)
     implementation(libs.nicehttp) // HTTP Lib
 
-    implementation(libs.bundles.compose)
-    implementation(libs.activity.compose)
+    // // // implementation(libs.bundles.compose)
+    // // // implementation(libs.activity.compose)
     implementation(libs.kotlinx.io.core) // Logcat parser
 
     implementation(project(":library"))
