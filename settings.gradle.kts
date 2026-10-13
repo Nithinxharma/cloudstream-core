@@ -1,5 +1,20 @@
-rootProject.name = "CloudStream"
+pluginManagement {
+    repositories {
+        gradlePluginPortal()
+        google()
+        mavenCentral()
+    }
+}
 
-include(":app")
-include(":library")
-include(":shared")
+dependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+    repositories {
+        google()
+        mavenCentral()
+        mavenLocal()
+        maven("https://jitpack.io")
+    }
+}
+
+rootProject.name = "CloudStream"
+include(":app", ":shared", ":library")
