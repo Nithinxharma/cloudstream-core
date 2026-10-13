@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="8dp">
+
+    <!-- Top Horizontal Scrollable Bar with Action Buttons -->
+    <HorizontalScrollView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:fillViewport="true"
+        android:scrollbars="none">
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <Button
+                android:id="@+id/btn_test_network"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="6dp"
+                android:text="1. Test Network" />
+
+            <Button
+                android:id="@+id/btn_test_plugins"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="6dp"
+                android:text="2. Load Plugins" />
+
+            <Button
+                android:id="@+id/btn_test_search"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="6dp"
+                android:text="3. Search Media" />
+
+            <Button
+                android:id="@+id/btn_test_details"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="6dp"
+                android:text="4. Load Details" />
+
+            <Button
+                android:id="@+id/btn_test_extract"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="6dp"
+                android:text="5. Extract Stream Links" />
+
+            <Button
+                android:id="@+id/btn_test_auth"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="6dp"
+                android:text="6. Test Auth/Sync" />
+
+            <Button
+                android:id="@+id/btn_clear_logs"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Clear Logs" />
+        </LinearLayout>
+    </HorizontalScrollView>
+
+    <!-- Header status / label -->
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingTop="8dp"
+        android:paddingBottom="4dp"
+        android:text="Live Output Console:"
+        android:textStyle="bold" />
+
+    <!-- Black Monospace Scrollable Live Terminal Console -->
+    <ScrollView
+        android:id="@+id/scroll_console"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:background="#121212"
+        android:padding="8dp">
+
+        <TextView
+            android:id="@+id/tv_console_output"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:fontFamily="monospace"
+            android:lineSpacingExtra="3dp"
+            android:text="[READY] CloudStream Core Test Harness initialized.\nTap any test button above to run routines.\n"
+            android:textColor="#00FF66"
+            android:textSize="12sp" />
+    </ScrollView>
+
+</LinearLayout>
