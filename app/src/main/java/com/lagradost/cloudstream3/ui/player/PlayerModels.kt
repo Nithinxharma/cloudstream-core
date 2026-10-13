@@ -33,11 +33,18 @@ data class SubtitleData(
 ) {
     fun getIETF_tag(): String? {
         if (!languageCode.isNullOrBlank()) {
-            return SubtitleHelper.fromLanguageToTagIETF(languageCode) ?: languageCode
+            val codeTag = SubtitleHelper.fromCodeToLangTagIETF(languageCode)
+                ?: SubtitleHelper.fromLanguageToTagIETF(languageCode)
+            if (codeTag != null) return codeTag
         }
         val cleanName = originalName.replace(Regex("\\[.*?\\]"), "").trim()
-        return SubtitleHelper.fromLanguageToTagIETF(cleanName, halfMatch = false)
+        val nameTag = SubtitleHelper.fromLanguageToTagIETF(cleanName, halfMatch = false)
             ?: SubtitleHelper.fromLanguageToTagIETF(originalName, halfMatch = true)
+        if (nameTag != null) return nameTag
+        if (!languageCode.isNullOrBlank() && SubtitleHelper.isWellFormedTagIETF(languageCode)) {
+            return languageCode
+        }
+        return null
     }
 }
 
