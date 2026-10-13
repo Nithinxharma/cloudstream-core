@@ -1,0 +1,6 @@
+{
+  "name": "CloudStream",
+  "description": "Media center and streaming application with extension and tracking support",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

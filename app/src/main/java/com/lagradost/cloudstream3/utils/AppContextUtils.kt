@@ -52,7 +52,6 @@ import com.google.android.gms.cast.framework.CastState
 import com.google.android.gms.common.ConnectionResult
 import com.google.android.gms.common.GoogleApiAvailability
 import com.google.android.gms.common.wrappers.Wrappers
-import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.lagradost.cloudstream3.APIHolder.apis
 import com.lagradost.cloudstream3.AllLanguagesName
 import com.lagradost.cloudstream3.CloudStreamApp.Companion.getActivity
@@ -105,17 +104,13 @@ object AppContextUtils {
     fun View.isLtr() = this.layoutDirection == LAYOUT_DIRECTION_LTR
     fun View.isRtl() = this.layoutDirection == LAYOUT_DIRECTION_RTL
 
-    fun BottomSheetDialog?.ownHide() {
+    fun android.app.Dialog?.ownHide() {
         this?.hide()
     }
 
-    fun BottomSheetDialog?.ownShow() {
-        // the reason for this is because show has a shitty animation we don't want
+    fun android.app.Dialog?.ownShow() {
         this?.window?.setWindowAnimations(-1)
         this?.show()
-        Handler(Looper.getMainLooper()).postDelayed({
-            this?.window?.setWindowAnimations(com.google.android.material.R.style.Animation_Design_BottomSheetDialog)
-        }, 200)
     }
 
     //fun Context.deleteFavorite(data: SearchResponse) {

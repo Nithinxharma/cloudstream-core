@@ -1,3 +1,4 @@
+// https://developer.android.com/build#settings-file
 pluginManagement {
     repositories {
         gradlePluginPortal()
@@ -17,4 +18,7 @@ dependencyResolutionManagement {
 }
 
 rootProject.name = "CloudStream"
-include(":app", ":shared", ":library")
+
+include(":app")
+include(":library")
+include(":shared")

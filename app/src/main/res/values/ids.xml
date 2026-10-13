@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <item name="global_to_navigation_settings_plugins" type="id" />
+    <item name="navigation_webview" type="id" />
+    <item name="global_to_navigation_results_tv" type="id" />
+    <item name="global_to_navigation_results_phone" type="id" />
+    <item name="global_to_navigation_player" type="id" />
+</resources>

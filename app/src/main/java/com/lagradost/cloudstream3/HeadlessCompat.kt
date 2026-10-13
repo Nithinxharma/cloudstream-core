@@ -1,25 +1,40 @@
 package com.lagradost.cloudstream3
 
 import android.content.Context
-import android.content.Intent
-import androidx.activity.result.ActivityResultLauncher
+import com.lagradost.cloudstream3.utils.Event
 import java.io.File
 
 object HeadlessCompat {
-    @Volatile
-    var lastError: Throwable? = null
-    var activityResultLauncher: ActivityResultLauncher<Intent>? = null
-    const val API_NAME_EXTRA_KEY = "API_NAME_EXTRA_KEY"
+    const val API_NAME_EXTRA_KEY = "api_name"
 
-    fun deleteFileOnExit(file: File) {
-        try { file.deleteOnExit() } catch (_: Throwable) {}
+    var lastError: String? = null
+
+    fun setLastError(context: Context?) {
+        try {
+            val file = context?.filesDir?.resolve("last_error")
+            if (file?.exists() == true) {
+                lastError = file.readText()
+            }
+        } catch (_: Exception) {}
     }
 
-    fun bookmarksUpdatedEvent(force: Boolean = true) {}
-    fun reloadLibraryEvent(force: Boolean = true) {}
-    fun reloadHomeEvent(force: Boolean = true) {}
-    fun afterPluginsLoadedEvent() {}
-    fun afterRepositoryLoadedEvent(force: Boolean = true) {}
+    val afterPluginsLoadedEvent = Event<Boolean>()
+    val afterRepositoryLoadedEvent = Event<Boolean>()
+    val bookmarksUpdatedEvent = Event<Boolean>()
+    val reloadLibraryEvent = Event<Boolean>()
+    val reloadHomeEvent = Event<Boolean>()
 
-    fun setLastError(context: Context?) { lastError = null }
+    fun reloadLibraryEvent(force: Boolean) {
+        reloadLibraryEvent.invoke(force)
+    }
+
+    fun reloadHomeEvent(force: Boolean) {
+        reloadHomeEvent.invoke(force)
+    }
+
+    fun deleteFileOnExit(file: File) {
+        try {
+            file.deleteOnExit()
+        } catch (_: Exception) {}
+    }
 }

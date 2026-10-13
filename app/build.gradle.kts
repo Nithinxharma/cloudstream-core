@@ -9,55 +9,24 @@ plugins {
     alias(libs.plugins.android.library)
     alias(libs.plugins.dokka)
     alias(libs.plugins.kotlin.serialization)
-    // // // // // alias(libs.plugins.compose.multiplatform)
-    // // // // // alias(libs.plugins.compose.compiler)
+    // Compose compiler plugin disabled for headless library
 }
 
 val javaTarget = JvmTarget.fromTarget(libs.versions.jvmTarget.get())
 
 abstract class GenerateGitHashTask : DefaultTask() {
-
-    @get:InputFile
-    @get:PathSensitive(PathSensitivity.RELATIVE)
-    abstract val headFile: RegularFileProperty
-
-    @get:InputDirectory
-    @get:PathSensitive(PathSensitivity.RELATIVE)
-    abstract val headsDir: DirectoryProperty
-
     @get:OutputDirectory
     abstract val outputDir: DirectoryProperty
 
     @TaskAction
     fun generate() {
-        val head = headFile.get().asFile
-
-        val hash = try {
-            if (head.exists()) {
-                // Read the commit hash from .git/HEAD
-                val headContent = head.readText().trim()
-                if (headContent.startsWith("ref:")) {
-                    val refPath = headContent.substring(5) // e.g., refs/heads/main
-                    val commitFile = File(head.parentFile, refPath)
-                    if (commitFile.exists()) commitFile.readText().trim() else ""
-                } else headContent // If it's a detached HEAD (commit hash directly)
-            } else "" // If .git/HEAD doesn't exist
-        } catch (_: Throwable) {
-            "" // Just set to an empty string if any exception occurs
-        }.take(7) // Get the short commit hash
-
         val outFile = outputDir.file("git-hash.txt").get().asFile
         outFile.parentFile.mkdirs()
-        outFile.writeText(hash)
+        outFile.writeText("dev")
     }
 }
 
 val generateGitHash = tasks.register<GenerateGitHashTask>("generateGitHash") {
-    val gitDir = layout.projectDirectory.dir("../.git")
-
-    headFile.set(gitDir.file("HEAD"))
-    headsDir.set(gitDir.dir("refs/heads"))
-
     outputDir.set(layout.buildDirectory.dir("generated/git"))
 }
 
@@ -65,14 +34,6 @@ android {
     @Suppress("UnstableApiUsage")
     testOptions {
         unitTests.isReturnDefaultValues = true
-    }
-
-    // Looks like google likes to add metadata only they can read https://gitlab.com/IzzyOnDroid/repo/-/work_items/491
-    dependenciesInfo {
-        // Disables dependency metadata when building APKs.
-        includeInApk = false
-        // Disables dependency metadata when building Android App Bundles.
-        includeInBundle = false
     }
 
     androidComponents {
@@ -84,96 +45,68 @@ android {
         }
     }
 
-    signingConfigs {
-        // We just use SIGNING_KEY_ALIAS here since it won't change
-        // so won't kill the configuration cache.
-        if (System.getenv("SIGNING_KEY_ALIAS") != null) {
-            create("prerelease") {
-                val tmpFilePath = System.getProperty("user.home") + "/work/_temp/keystore/"
-                val prereleaseStoreFile: File? = File(tmpFilePath).listFiles()?.first()
-
-                storeFile = prereleaseStoreFile?.let { file(it) }
-                storePassword = System.getenv("SIGNING_STORE_PASSWORD")
-                keyAlias = System.getenv("SIGNING_KEY_ALIAS")
-                keyPassword = System.getenv("SIGNING_KEY_PASSWORD")
-            }
-        }
-    }
-
     compileSdk = libs.versions.compileSdk.get().toInt()
 
     defaultConfig {
         minSdk = libs.versions.minSdk.get().toInt()
-        targetSdk = libs.versions.targetSdk.get().toInt()
-        versionCode = libs.versions.versionCode.get().toInt()
-        versionName = libs.versions.versionName.get()
 
         manifestPlaceholders["target_sdk_version"] = libs.versions.targetSdk.get()
+
+        buildConfigField(
+            "String",
+            "APPLICATION_ID",
+            "\"com.lagradost.cloudstream3\""
+        )
 
         // Reads local.properties
         val localProperties = gradleLocalProperties(rootDir, project.providers)
 
+        val simklId = System.getenv("SIMKL_CLIENT_ID") ?: (localProperties["simkl.id"] as? String) ?: ""
+        val simklSecret = System.getenv("SIMKL_CLIENT_SECRET") ?: (localProperties["simkl.secret"] as? String) ?: ""
+        val malKey = System.getenv("MAL_KEY") ?: (localProperties["mal.key"] as? String) ?: ""
+        val anilistKey = System.getenv("ANILIST_KEY") ?: (localProperties["anilist.key"] as? String) ?: ""
+
         buildConfigField(
             "long",
             "BUILD_DATE",
-            "${System.currentTimeMillis()}"
+            "${System.currentTimeMillis()}L"
         )
         buildConfigField(
             "String",
             "SIMKL_CLIENT_ID",
-            "\"" + (System.getenv("SIMKL_CLIENT_ID") ?: localProperties["simkl.id"]) + "\""
+            "\"$simklId\""
         )
         buildConfigField(
             "String",
             "SIMKL_CLIENT_SECRET",
-            "\"" + (System.getenv("SIMKL_CLIENT_SECRET") ?: localProperties["simkl.secret"]) + "\""
+            "\"$simklSecret\""
         )
         buildConfigField(
             "String",
             "MAL_KEY",
-            "\"" + (System.getenv("MAL_KEY") ?: localProperties["mal.key"]) + "\""
+            "\"$malKey\""
         )
         buildConfigField(
             "String",
             "ANILIST_KEY",
-            "\"" + (System.getenv("ANILIST_KEY") ?: localProperties["anilist.key"]) + "\""
+            "\"$anilistKey\""
         )
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
     buildTypes {
         release {
-            isDebuggable = false
             isMinifyEnabled = false
-            isShrinkResources = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
         }
         debug {
-            isDebuggable = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-        }
-    }
-
-    flavorDimensions.add("state")
-    productFlavors {
-        create("stable") {
-            dimension = "state"
-        }
-        create("prerelease") {
-            dimension = "state"
-            if (signingConfigs.names.contains("prerelease")) {
-                signingConfig = signingConfigs.getByName("prerelease")
-            } else {
-                logger.warn("No prerelease signing config!")
-            }
-            versionNameSuffix = "-PRE"
-            versionCode = (System.currentTimeMillis() / 60000).toInt()
         }
     }
 
@@ -184,8 +117,6 @@ android {
     }
 
     java {
-        // Use Java 17 toolchain even if a higher JDK runs the build.
-        // We still use Java 8 for now which higher JDKs have deprecated.
         toolchain {
             languageVersion.set(JavaLanguageVersion.of(libs.versions.jdkToolchain.get()))
         }
@@ -202,8 +133,6 @@ android {
 
     packaging {
         jniLibs {
-            // Enables legacy JNI packaging to reduce APK size (similar to builds before minSdk 23).
-            // Note: This may increase app startup time slightly.
             useLegacyPackaging = true
         }
     }
@@ -233,10 +162,10 @@ dependencies {
     implementation(libs.kotlinx.collections.immutable)
     implementation(libs.kotlinx.serialization.json) // JSON Parser
 
-    // Design & UI
-    // // // // // implementation(libs.preference.ktx)
-    // // // // // implementation(libs.material)
-    // // // // // implementation(libs.constraintlayout)
+    // Design & UI (Disabled for headless AAR)
+    implementation(libs.preference.ktx)
+    // implementation(libs.material)
+    // implementation(libs.constraintlayout)
 
     // Coil Image Loading
     implementation(libs.bundles.coil)
@@ -252,32 +181,31 @@ dependencies {
     implementation(libs.anime.db)
 
     // PlayBack
-    // // // // // implementation(libs.colorpicker) // Subtitle Color Picker
+    // implementation(libs.colorpicker) // Subtitle Color Picker
     implementation(libs.newpipeextractor) // For Trailers
     implementation(libs.juniversalchardet) // Subtitle Decoding
 
-    // UI Stuff
-    // // // // // implementation(libs.shimmer) // Shimmering Effect (Loading Skeleton)
+    // UI Stuff (Disabled for headless AAR)
+    // implementation(libs.shimmer)
     implementation(libs.palette.ktx) // Palette for Images -> Colors
-    // // // // // implementation(libs.tvprovider)
-    // // // // // implementation(libs.overlappingpanels) // Gestures
+    implementation(libs.tvprovider)
+    // implementation(libs.overlappingpanels)
     implementation(libs.biometric) // Fingerprint Authentication
-    // // // // // implementation(libs.previewseekbar.media3) // SeekBar Preview
-    // // // // // implementation(libs.qrcode.kotlin) // QR Code for PIN Auth on TV
+    // implementation(libs.previewseekbar.media3)
+    // implementation(libs.qrcode.kotlin)
 
     // Extensions & Other Libs
     implementation(libs.jsoup) // HTML Parser
     implementation(libs.ksoup) // HTML Parser
     implementation(libs.rhino) // Run JavaScript
-    implementation(libs.safefile) // To Prevent the URI File Fu*kery
+    implementation(libs.safefile) // File management
     coreLibraryDesugaring(libs.desugar.jdk.libs.nio) // NIO Flavor Needed for NewPipeExtractor
-    implementation(libs.conscrypt.android) // To Fix SSL Fu*kery on Android 9
+    implementation(libs.conscrypt.android) // SSL helper
     implementation(libs.jackson.module.kotlin) // JSON Parser
     implementation(libs.zipline)
 
-    // Temp/deprecated; will be removed once extensions have time to migrate from using it
+    // Temp/deprecated dependencies
     implementation("com.google.code.gson:gson:2.11.0")
-    // Deprecated; will be removed once extensions have time to migrate from using it
     implementation("me.xdrop:fuzzywuzzy:1.4.0")
 
     // Torrent Support
@@ -287,8 +215,9 @@ dependencies {
     implementation(libs.work.runtime.ktx)
     implementation(libs.nicehttp) // HTTP Lib
 
-    // // // // // implementation(libs.bundles.compose)
-    // // // // // implementation(libs.activity.compose)
+    // Compose (Disabled for headless AAR)
+    // implementation(libs.bundles.compose)
+    // implementation(libs.activity.compose)
     implementation(libs.kotlinx.io.core) // Logcat parser
 
     implementation(project(":library"))
@@ -298,31 +227,6 @@ dependencies {
 tasks.register<Jar>("androidSourcesJar") {
     archiveClassifier.set("sources")
     from(android.sourceSets.getByName("main").java.directories) // Full Sources
-}
-
-tasks.register<Copy>("copyJar") {
-    dependsOn("build", ":library:jvmJar")
-    from(
-        "build/intermediates/compile_app_classes_jar/prereleaseDebug/bundlePrereleaseDebugClassesToCompileJar",
-        "../library/build/libs"
-    )
-    into("build/app-classes")
-    include("classes.jar", "library-jvm*.jar")
-    // Remove the version
-    rename("library-jvm.*.jar", "library-jvm.jar")
-}
-
-// Merge the app classes and the library classes into classes.jar
-tasks.register<Jar>("makeJar") {
-    // Duplicates cause hard to catch errors, better to fail at compile time.
-    duplicatesStrategy = DuplicatesStrategy.FAIL
-    dependsOn(tasks.getByName("copyJar"))
-    from(
-        zipTree("build/app-classes/classes.jar"),
-        zipTree("build/app-classes/library-jvm.jar")
-    )
-    destinationDirectory.set(layout.buildDirectory)
-    archiveBaseName = "classes"
 }
 
 tasks.withType<KotlinJvmCompile> {
@@ -340,7 +244,7 @@ dokka {
     moduleName = "App"
     dokkaSourceSets {
         configureEach {
-            suppress = name != "prereleaseDebug"
+            suppress = name != "debug"
             analysisPlatform = KotlinPlatform.JVM
             displayName = "JVM"
             documentedVisibilities(

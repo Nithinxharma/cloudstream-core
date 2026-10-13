@@ -122,4 +122,27 @@
     <color name="colorTestFail">#ea596e</color>
     <color name="colorTestWarning">#FF9800</color>
     <color name="playIconBackground">#B3000000</color>
+
+    <color name="black_button_ripple">#32000000</color>
+    <color name="chip_color">#2B2C30</color>
+    <color name="white_transparent_toggle">#33FFFFFF</color>
+    <color name="chip_color_text">#FFFFFF</color>
+    <color name="white_attr_20">#33FFFFFF</color>
+    <color name="text_selection_color">#FFFFFF</color>
+    <color name="account_edit_btn_tint">#9ba0a4</color>
+    <color name="button_selector_color">#3d50fa</color>
+    <color name="check_selection_color">#3d50fa</color>
+    <color name="color_primary_transparent">#333d50fa</color>
+    <color name="item_select_color">#33FFFFFF</color>
+    <color name="item_select_color_tv">#33FFFFFF</color>
+    <color name="player_button_tv">#FFFFFF</color>
+    <color name="player_on_button_tv">#FFFFFF</color>
+    <color name="player_on_button_tv_attr">#FFFFFF</color>
+    <color name="selectable_black">#111111</color>
+    <color name="selectable_white">#FFFFFF</color>
+    <color name="tag_stroke_color">#40FFFFFF</color>
+    <color name="toggle_button">#3d50fa</color>
+    <color name="toggle_button_outline">#40FFFFFF</color>
+    <color name="toggle_button_text">#FFFFFF</color>
+    <color name="toggle_selector">#3d50fa</color>
 </resources>
