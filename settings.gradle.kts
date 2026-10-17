@@ -12,6 +12,7 @@ dependencyResolutionManagement {
         google()
         mavenCentral()
         mavenLocal()
+        maven(url = rootDir.resolve("build/repo"))
         maven("https://jitpack.io")
     }
 }

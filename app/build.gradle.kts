@@ -13,6 +13,7 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinJvmCompile
 
 plugins {
     alias(libs.plugins.android.library)
+    id("maven-publish")
     alias(libs.plugins.dokka)
     alias(libs.plugins.kotlin.serialization)
     // Compose compiler plugin disabled for headless library
@@ -55,6 +56,7 @@ android {
 
     defaultConfig {
         minSdk = libs.versions.minSdk.get().toInt()
+        consumerProguardFiles("proguard-rules.pro")
 
         manifestPlaceholders["target_sdk_version"] = libs.versions.targetSdk.get()
 
@@ -143,6 +145,12 @@ android {
         }
     }
 
+    publishing {
+        singleVariant("release") {
+            withSourcesJar()
+        }
+    }
+
     namespace = "com.lagradost.cloudstream3"
 }
 
@@ -219,15 +227,14 @@ dependencies {
 
     // Downloading & Networking
     implementation(libs.work.runtime.ktx)
-    implementation(libs.nicehttp) // HTTP Lib
+    api(libs.nicehttp) // HTTP Lib
 
     // Compose (Disabled for headless AAR)
     // implementation(libs.bundles.compose)
     // implementation(libs.activity.compose)
     implementation(libs.kotlinx.io.core) // Logcat parser
 
-    implementation(project(":library"))
-    implementation(project(":shared"))
+    api(project(":library"))
 }
 
 tasks.register<Jar>("androidSourcesJar") {
@@ -375,3 +382,23 @@ tasks.register("bundleSingleAar") {
         }
     }
 }
+
+afterEvaluate {
+    publishing {
+        publications {
+            create<MavenPublication>("release") {
+                from(components["release"])
+                groupId = "com.lagradost.cloudstream3"
+                artifactId = "cs3core"
+                version = libs.versions.versionName.get()
+            }
+        }
+        repositories {
+            maven {
+                name = "ProjectLocal"
+                url = uri(rootProject.layout.buildDirectory.dir("repo"))
+            }
+        }
+    }
+}
+

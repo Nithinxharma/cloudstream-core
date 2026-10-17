@@ -130,6 +130,12 @@ publishing {
             groupId = "com.lagradost.api"
         }
     }
+    repositories {
+        maven {
+            name = "ProjectLocal"
+            url = uri(rootProject.layout.buildDirectory.dir("repo"))
+        }
+    }
 }
 
 dokka {

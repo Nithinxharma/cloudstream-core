@@ -49,23 +49,21 @@ android {
     }
 }
 
-dependencies {
-    // Single Unified AAR (builtBy ensures :app:bundleSingleAar runs before testApp tasks)
-    implementation(files("../app/build/outputs/aar/cs3core.aar") {
-        builtBy(":app:bundleSingleAar")
-    })
+tasks.named("preBuild") {
+    dependsOn(":library:publishAllPublicationsToProjectLocalRepository", ":app:publishAllPublicationsToProjectLocalRepository")
+}
 
-    // Standard Runtime & Transitive Dependencies
-    implementation(libs.nicehttp)
-    implementation(libs.jsoup)
-    implementation(libs.ksoup)
-    implementation(libs.rhino)
-    implementation(libs.kotlinx.serialization.json)
-    implementation(libs.kotlinx.coroutines.core)
+dependencies {
+    // Published Headless SDK Maven Dependency from project-local repository
+    implementation("com.lagradost.cloudstream3:cs3core:4.8.0")
+
+    // Host Application UI / Coroutines / Lifecycle dependencies
     implementation(libs.core.ktx)
     implementation(libs.appcompat)
     implementation(libs.bundles.lifecycle)
     implementation(libs.material)
+    implementation(libs.kotlinx.coroutines.core)
+    implementation(libs.nicehttp)
 
     // Desugaring for Java 8+ APIs
     coreLibraryDesugaring(libs.desugar.jdk.libs.nio)

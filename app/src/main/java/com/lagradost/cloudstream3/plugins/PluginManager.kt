@@ -268,14 +268,14 @@ object PluginManager {
      * DO NOT USE THIS IN A PLUGIN! It may case an infinite recursive loop lagging or crashing everyone's devices.
      * If you use it from a plugin, do not expect a stable jvmName, SO DO NOT USE IT!
      */
-    @Suppress("FunctionName")
-    @InternalAPI
-    @Throws
-    suspend fun ___DO_NOT_CALL_FROM_A_PLUGIN_updateAllOnlinePluginsAndLoadThem(activity: Activity) {
+    suspend fun updateAllOnlinePlugins(
+        context: Context,
+        listener: PluginEventListener? = null
+    ) {
         assertNonRecursiveCallstack()
 
         // Load all plugins as fast as possible!
-        ___DO_NOT_CALL_FROM_A_PLUGIN_loadAllOnlinePlugins(activity)
+        ___DO_NOT_CALL_FROM_A_PLUGIN_loadAllOnlinePlugins(context)
         afterPluginsLoadedEvent.invoke(false)
 
         val urls = (getKey<Array<RepositoryData>>(REPOSITORIES_KEY)
@@ -292,7 +292,7 @@ object PluginManager {
                 .map { onlineData ->
                     OnlinePluginData(savedData, onlineData)
                 }.filter {
-                    it.validOnlineData(activity)
+                    it.validOnlineData(context)
                 }
         }.flatten().distinctBy { it.onlineData.plugin.url }
 
@@ -304,16 +304,16 @@ object PluginManager {
 
         outdatedPlugins.amap { pluginData ->
             if (pluginData.isDisabled) {
-                //updatedPlugins.add(activity.getString(R.string.single_plugin_disabled, pluginData.onlineData.second.name))
                 unloadPlugin(pluginData.savedData.filePath)
             } else if (pluginData.isOutdated) {
                 downloadPlugin(
-                    activity,
+                    context,
                     pluginData.onlineData.plugin.url,
                     pluginData.onlineData.plugin.fileHash,
                     pluginData.savedData.internalName,
                     File(pluginData.savedData.filePath),
-                    true
+                    true,
+                    listener
                 ).let { success ->
                     if (success)
                         updatedPlugins.add(pluginData.onlineData.plugin.name)
@@ -321,20 +321,33 @@ object PluginManager {
             }
         }
 
-        main {
-            val uitext = txt(R.string.plugins_updated, updatedPlugins.size)
-            createNotification(activity, uitext, updatedPlugins)
-            /*val navBadge = (activity as MainActivity).binding?.navRailView?.getOrCreateBadge(R.id.navigation_settings)
-            navBadge?.isVisible = true
-            navBadge?.number = 5*/
+        if (listener != null) {
+            val title = try {
+                context.getString(R.string.plugins_updated, updatedPlugins.size)
+            } catch (_: Exception) {
+                "Updated ${updatedPlugins.size} plugins"
+            }
+            listener.onNotificationRequested(title, updatedPlugins.joinToString(", "), updatedPlugins)
+            listener.onBatchOperationCompleted(updatedPlugins.size, 0)
+            if (listener is DefaultPluginEventListener) {
+                main {
+                    val uitext = txt(R.string.plugins_updated, updatedPlugins.size)
+                    createNotification(context, uitext, updatedPlugins)
+                }
+            }
         }
 
-        // ioSafe {
         loadedOnlinePlugins = true
         afterPluginsLoadedEvent.invoke(false)
-        // }
 
         Log.i(TAG, "Plugin update done!")
+    }
+
+    @Suppress("FunctionName")
+    @InternalAPI
+    @Throws
+    suspend fun ___DO_NOT_CALL_FROM_A_PLUGIN_updateAllOnlinePluginsAndLoadThem(activity: Activity) {
+        updateAllOnlinePlugins(activity, DefaultPluginEventListener(activity))
     }
 
     /**
@@ -346,12 +359,10 @@ object PluginManager {
      * DO NOT USE THIS IN A PLUGIN! It may case an infinite recursive loop lagging or crashing everyone's devices.
      * If you use it from a plugin, do not expect a stable jvmName, SO DO NOT USE IT!
      */
-    @Suppress("FunctionName")
-    @InternalAPI
-    @Throws
-    suspend fun ___DO_NOT_CALL_FROM_A_PLUGIN_downloadNotExistingPluginsAndLoad(
-        activity: Activity,
-        mode: AutoDownloadMode
+    suspend fun downloadMissingPlugins(
+        context: Context,
+        mode: AutoDownloadMode,
+        listener: PluginEventListener? = null
     ) {
         assertNonRecursiveCallstack()
 
@@ -362,7 +373,7 @@ object PluginManager {
             getRepoPlugins(it)?.toList() ?: emptyList()
         }.flatten().distinctBy { it.plugin.url }
 
-        val providerLang = activity.getApiProviderLangSettings()
+        val providerLang = context.getApiProviderLangSettings()
         //Log.i(TAG, "providerLang => ${providerLang.toJson()}")
 
         // Iterate online repos and returns not downloaded plugins
@@ -379,7 +390,7 @@ object PluginManager {
             }
 
             //Omit already existing plugins
-            if (getPluginPath(activity, sitePlugin.internalName, onlineData.repositoryData.url).exists()) {
+            if (getPluginPath(context, sitePlugin.internalName, onlineData.repositoryData.url).exists()) {
                 Log.i(TAG, "Skip > ${sitePlugin.internalName}")
                 return@mapNotNull null
             }
@@ -420,21 +431,33 @@ object PluginManager {
 
         notDownloadedPlugins.amap { pluginData ->
             downloadPlugin(
-                activity,
+                context,
                 pluginData.onlineData.plugin.url,
                 pluginData.onlineData.plugin.fileHash,
                 pluginData.savedData.internalName,
                 pluginData.onlineData.repositoryData.url,
-                !pluginData.isDisabled
+                !pluginData.isDisabled,
+                listener
             ).let { success ->
                 if (success)
                     newDownloadPlugins.add(pluginData.onlineData.plugin.name)
             }
         }
 
-        main {
-            val uitext = txt(R.string.plugins_downloaded, newDownloadPlugins.size)
-            createNotification(activity, uitext, newDownloadPlugins)
+        if (listener != null) {
+            val title = try {
+                context.getString(R.string.plugins_downloaded, newDownloadPlugins.size)
+            } catch (_: Exception) {
+                "Downloaded ${newDownloadPlugins.size} plugins"
+            }
+            listener.onNotificationRequested(title, newDownloadPlugins.joinToString(", "), newDownloadPlugins)
+            listener.onBatchOperationCompleted(newDownloadPlugins.size, 0)
+            if (listener is DefaultPluginEventListener) {
+                main {
+                    val uitext = txt(R.string.plugins_downloaded, newDownloadPlugins.size)
+                    createNotification(context, uitext, newDownloadPlugins)
+                }
+            }
         }
 
         // ioSafe {
@@ -442,6 +465,16 @@ object PluginManager {
         // }
 
         Log.i(TAG, "Plugin download done!")
+    }
+
+    @Suppress("FunctionName")
+    @InternalAPI
+    @Throws
+    suspend fun ___DO_NOT_CALL_FROM_A_PLUGIN_downloadNotExistingPluginsAndLoad(
+        activity: Activity,
+        mode: AutoDownloadMode
+    ) {
+        downloadMissingPlugins(activity, mode, DefaultPluginEventListener(activity))
     }
 
     @Throws
@@ -479,18 +512,26 @@ object PluginManager {
      * DO NOT USE THIS IN A PLUGIN! It may case an infinite recursive loop lagging or crashing everyone's devices.
      * If you use it from a plugin, do not expect a stable jvmName, SO DO NOT USE IT!
      */
+    suspend fun hotReloadLocalPlugins(
+        context: Context,
+        listener: PluginEventListener? = null
+    ) {
+        assertNonRecursiveCallstack()
+
+        Log.d(TAG, "Reloading all local plugins!")
+        getPluginsLocal().forEach {
+            unloadPlugin(it.filePath)
+        }
+        ___DO_NOT_CALL_FROM_A_PLUGIN_loadAllLocalPlugins(context, true)
+        listener?.onBatchOperationCompleted(getPluginsLocal().size, 0)
+    }
+
     @Suppress("FunctionName")
     @InternalAPI
     @Throws
     suspend fun ___DO_NOT_CALL_FROM_A_PLUGIN_hotReloadAllLocalPlugins(activity: FragmentActivity?) {
-        assertNonRecursiveCallstack()
-
-        Log.d(TAG, "Reloading all local plugins!")
         if (activity == null) return
-        getPluginsLocal().forEach {
-            unloadPlugin(it.filePath)
-        }
-        ___DO_NOT_CALL_FROM_A_PLUGIN_loadAllLocalPlugins(activity, true)
+        hotReloadLocalPlugins(activity, DefaultPluginEventListener(activity))
     }
 
     /**
@@ -755,29 +796,33 @@ object PluginManager {
     }
 
     suspend fun downloadPlugin(
-        activity: Activity,
+        context: Context,
         pluginUrl: String,
         pluginHash: String?,
         internalName: String,
         repositoryUrl: String,
-        loadPlugin: Boolean
+        loadPlugin: Boolean,
+        listener: PluginEventListener? = null
     ): Boolean {
-        val file = getPluginPath(activity, internalName, repositoryUrl)
-        return downloadPlugin(activity, pluginUrl, pluginHash, internalName, file, loadPlugin)
+        val file = getPluginPath(context, internalName, repositoryUrl)
+        return downloadPlugin(context, pluginUrl, pluginHash, internalName, file, loadPlugin, listener)
     }
 
     suspend fun downloadPlugin(
-        activity: Activity,
+        context: Context,
         pluginUrl: String,
         pluginHash: String?,
         internalName: String,
         file: File,
         loadPlugin: Boolean,
+        listener: PluginEventListener? = null
     ): Boolean {
         try {
             Log.d(TAG, "Downloading plugin: $pluginUrl to ${file.absolutePath}")
-            // The plugin file needs to be salted with the repository url hash as to allow multiple repositories with the same internal plugin names
-            val newFile = downloadPluginToFile(activity, pluginUrl, file, pluginHash) ?: return false
+            val newFile = downloadPluginToFile(context, pluginUrl, file, pluginHash) ?: run {
+                listener?.onPluginLoadFailed(internalName, "Download or checksum verification failed", null)
+                return false
+            }
 
             val data = PluginData(
                 internalName,
@@ -789,20 +834,46 @@ object PluginManager {
 
             return if (loadPlugin) {
                 unloadPlugin(file.absolutePath)
-                loadPlugin(
-                    activity,
+                val success = loadPlugin(
+                    context,
                     newFile,
                     data
                 )
+                if (success) {
+                    listener?.onPluginLoaded(data)
+                } else {
+                    listener?.onPluginLoadFailed(internalName, "Failed to load class from plugin archive", null)
+                }
+                success
             } else {
                 setPluginData(data)
+                listener?.onPluginLoaded(data)
                 true
             }
         } catch (e: Exception) {
             logError(e)
+            listener?.onPluginLoadFailed(internalName, e.message ?: "Unknown error", e)
             return false
         }
     }
+
+    suspend fun downloadPlugin(
+        activity: Activity,
+        pluginUrl: String,
+        pluginHash: String?,
+        internalName: String,
+        repositoryUrl: String,
+        loadPlugin: Boolean
+    ): Boolean = downloadPlugin(activity as Context, pluginUrl, pluginHash, internalName, repositoryUrl, loadPlugin, DefaultPluginEventListener(activity))
+
+    suspend fun downloadPlugin(
+        activity: Activity,
+        pluginUrl: String,
+        pluginHash: String?,
+        internalName: String,
+        file: File,
+        loadPlugin: Boolean,
+    ): Boolean = downloadPlugin(activity as Context, pluginUrl, pluginHash, internalName, file, loadPlugin, DefaultPluginEventListener(activity))
 
     suspend fun deletePlugin(file: File): Boolean {
         val list =
@@ -824,15 +895,16 @@ object PluginManager {
      * DO NOT USE THIS IN A PLUGIN! It may case an infinite recursive loop lagging or crashing everyone's devices.
      * If you use it from a plugin, do not expect a stable jvmName, SO DO NOT USE IT!
      */
-    @Suppress("FunctionName")
-    @InternalAPI
-    @Throws
-    suspend fun ___DO_NOT_CALL_FROM_A_PLUGIN_manuallyReloadAndUpdatePlugins(activity: Activity) {
+    suspend fun reloadAndUpdatePlugins(
+        context: Context,
+        listener: PluginEventListener? = null
+    ) {
         assertNonRecursiveCallstack()
 
-        showToast(activity.getString(R.string.starting_plugin_update_manually), Toast.LENGTH_LONG)
+        val startMsg = try { context.getString(R.string.starting_plugin_update_manually) } catch (_: Exception) { "Updating plugins..." }
+        listener?.onToastRequested(startMsg, true)
 
-        ___DO_NOT_CALL_FROM_A_PLUGIN_loadAllOnlinePlugins(activity)
+        ___DO_NOT_CALL_FROM_A_PLUGIN_loadAllOnlinePlugins(context)
         afterPluginsLoadedEvent.invoke(false)
 
         val urls = (getKey<Array<RepositoryData>>(REPOSITORIES_KEY)
@@ -845,7 +917,7 @@ object PluginManager {
             onlinePlugins
                 .filter { it.plugin.internalName == savedData.internalName }
                 .mapNotNull { onlineData ->
-                    OnlinePluginData(savedData, onlineData).takeIf { it.validOnlineData(activity) }
+                    OnlinePluginData(savedData, onlineData).takeIf { it.validOnlineData(context) }
                 }
         }.distinctBy { it.onlineData.plugin.url }
 
@@ -863,32 +935,36 @@ object PluginManager {
                 if (existingFile.exists()) existingFile.delete()
 
                 if (downloadPlugin(
-                        activity,
+                        context,
                         pluginData.onlineData.plugin.url,
                         pluginData.onlineData.plugin.fileHash,
                         pluginData.savedData.internalName,
                         existingFile,
-                        true
+                        true,
+                        listener
                     )
                 ) {
                     updatedPlugins.add(pluginData.onlineData.plugin.name)
                 }
             }
         }.also {
-            main {
-                val message = if (updatedPlugins.isNotEmpty()) {
-                    activity.getString(R.string.plugins_updated_manually, updatedPlugins.size)
-                } else {
-                    activity.getString(R.string.no_plugins_updated_manually)
+            val message = if (updatedPlugins.isNotEmpty()) {
+                try { context.getString(R.string.plugins_updated_manually, updatedPlugins.size) } catch (_: Exception) { "Updated ${updatedPlugins.size} plugins" }
+            } else {
+                try { context.getString(R.string.no_plugins_updated_manually) } catch (_: Exception) { "No plugins updated" }
+            }
+            listener?.onToastRequested(message, true)
+            listener?.onNotificationRequested(message, updatedPlugins.joinToString(", "), updatedPlugins)
+            listener?.onBatchOperationCompleted(updatedPlugins.size, 0)
+
+            if (listener is DefaultPluginEventListener) {
+                main {
+                    val notificationText = UiText.StringResource(
+                        R.string.plugins_updated_manually,
+                        listOf(updatedPlugins.size)
+                    )
+                    createNotification(context, notificationText, updatedPlugins)
                 }
-                showToast(message, Toast.LENGTH_LONG)
-
-                val notificationText = UiText.StringResource(
-                    R.string.plugins_updated_manually,
-                    listOf(updatedPlugins.size)
-                )
-                createNotification(activity, notificationText, updatedPlugins)
-
             }
         }
 
@@ -896,6 +972,13 @@ object PluginManager {
         afterPluginsLoadedEvent.invoke(false)
 
         Log.i("PluginManager", "Plugin update done!")
+    }
+
+    @Suppress("FunctionName")
+    @InternalAPI
+    @Throws
+    suspend fun ___DO_NOT_CALL_FROM_A_PLUGIN_manuallyReloadAndUpdatePlugins(activity: Activity) {
+        reloadAndUpdatePlugins(activity, DefaultPluginEventListener(activity))
     }
 
     private fun Context.createNotificationChannel() {

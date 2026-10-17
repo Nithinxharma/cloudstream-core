@@ -10,8 +10,6 @@ import com.lagradost.cloudstream3.TvSeriesLoadResponse
 import com.lagradost.cloudstream3.TvType
 import com.lagradost.cloudstream3.mvvm.getStackTracePretty
 import com.lagradost.cloudstream3.mvvm.logError
-import com.lagradost.cloudstream4.state.Log
-import com.lagradost.cloudstream4.state.LogItem
 import kotlinx.collections.immutable.PersistentList
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.coroutines.CancellationException
@@ -20,6 +18,35 @@ import kotlinx.coroutines.launch
 import kotlin.random.Random
 
 object TestingUtils {
+    enum class LogLevel(val identifier: String) {
+        Fatal("WTF"),
+        Error("E"),
+        Warning("W"),
+        Info("I"),
+        Debug("D"),
+        Verbose("V");
+    }
+
+    data class LogItem(
+        val date: Long = System.currentTimeMillis(),
+        val level: LogLevel,
+        val tag: String,
+        val message: String
+    )
+
+    interface Log {
+        fun f(tag: String, message: String) = log(LogLevel.Fatal, tag, message)
+        fun w(tag: String, message: String) = log(LogLevel.Warning, tag, message)
+        fun i(tag: String, message: String) = log(LogLevel.Info, tag, message)
+        fun v(tag: String, message: String) = log(LogLevel.Verbose, tag, message)
+        fun e(tag: String, message: String) = log(LogLevel.Error, tag, message)
+        fun d(tag: String, message: String) = log(LogLevel.Debug, tag, message)
+        fun log(level: LogLevel, tag: String, message: String) {
+            log(LogItem(date = System.currentTimeMillis(), level = level, tag = tag, message = message))
+        }
+        fun log(item: LogItem)
+    }
+
     open class TestResult(val success: Boolean) {
         companion object {
             val Pass = TestResult(true)
@@ -31,7 +58,7 @@ object TestingUtils {
         var messageLog: PersistentList<LogItem> = persistentListOf<LogItem>()
     ) : Log {
         override fun log(item: LogItem) {
-            messageLog = messageLog.adding(item)
+            messageLog = messageLog.add(item)
         }
     }
 

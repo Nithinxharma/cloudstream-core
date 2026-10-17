@@ -85,7 +85,7 @@ import com.lagradost.cloudstream3.utils.FillerEpisodeCheck.toClassDir
 import com.lagradost.cloudstream3.utils.JsUnpacker.Companion.load
 import com.lagradost.cloudstream3.utils.UIHelper.navigate
 import com.lagradost.cloudstream3.utils.downloader.DownloadObjects
-import com.lagradost.cloudstream4.AppSettings
+import com.lagradost.cloudstream3.SearchQuality
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import okhttp3.Cache
@@ -474,19 +474,39 @@ object AppContextUtils {
         }
     }
 
+    private fun Context.getFilteredSearchQuality(): Set<SearchQuality> {
+        val prefs = PreferenceManager.getDefaultSharedPreferences(this)
+        val stringSet = prefs?.getStringSet("pref_filter_search_quality_key2", null)
+        if (stringSet != null) {
+            return stringSet.mapNotNull { entry ->
+                try {
+                    enumValueOf<SearchQuality>(entry)
+                } catch (_: IllegalArgumentException) {
+                    null
+                }
+            }.toSet()
+        }
+        val legacyKey = try {
+            getString(R.string.pref_filter_search_quality_key)
+        } catch (_: Exception) {
+            "pref_filter_search_quality_key"
+        }
+        return prefs?.getStringSet(legacyKey, emptySet())
+            ?.mapNotNull { entry ->
+                entry.toIntOrNull()?.let { intVal ->
+                    SearchQuality.entries.getOrNull(intVal)
+                }
+            }?.toSet() ?: emptySet()
+    }
+
     fun Context.filterSearchResultByFilmQuality(data: List<SearchResponse>): List<SearchResponse> {
         // Filter results omitting entries with certain quality
         if (data.isNotEmpty()) {
-            val filteredSearchQuality = AppSettings(this).ui.filterQuality.get() /*PreferenceManager.getDefaultSharedPreferences(this)
-                ?.getStringSet(getString(R.string.pref_filter_search_quality_key), setOf())
-                ?.mapNotNull { entry ->
-                    entry.toIntOrNull() ?: return@mapNotNull null
-                } ?: listOf()*/
+            val filteredSearchQuality = getFilteredSearchQuality()
             if (filteredSearchQuality.isNotEmpty()) {
                 return data.filter { item ->
-                    val searchQualVal = item.quality //?.ordinal ?: -1
-                    //Log.i("filterSearch", "QuickSearch item => ${item.toJson()}")
-                    !filteredSearchQuality.contains(searchQualVal)
+                    val searchQualVal = item.quality
+                    searchQualVal == null || !filteredSearchQuality.contains(searchQualVal)
                 }
             }
         }
@@ -496,19 +516,14 @@ object AppContextUtils {
     fun Context.filterHomePageListByFilmQuality(data: HomePageList): HomePageList {
         // Filter results omitting entries with certain quality
         if (data.list.isNotEmpty()) {
-            val filteredSearchQuality = AppSettings(this).ui.filterQuality.get() /*PreferenceManager.getDefaultSharedPreferences(this)
-                ?.getStringSet(getString(R.string.pref_filter_search_quality_key), setOf())
-                ?.mapNotNull { entry ->
-                    entry.toIntOrNull() ?: return@mapNotNull null
-                } ?: listOf()*/
+            val filteredSearchQuality = getFilteredSearchQuality()
             if (filteredSearchQuality.isNotEmpty()) {
                 return HomePageList(
                     name = data.name,
                     isHorizontalImages = data.isHorizontalImages,
                     list = data.list.filter { item ->
-                        val searchQualVal = item.quality //?.ordinal ?: -1
-                        //Log.i("filterSearch", "QuickSearch item => ${item.toJson()}")
-                        !filteredSearchQuality.contains(searchQualVal)
+                        val searchQualVal = item.quality
+                        searchQualVal == null || !filteredSearchQuality.contains(searchQualVal)
                     }
                 )
             }
